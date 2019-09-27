@@ -47,13 +47,13 @@
 struct nand_bbt_descr {
 	int options;
 	int pages[CONFIG_SYS_NAND_MAX_CHIPS];
-	int offs;
-	int veroffs;
-	uint8_t version[CONFIG_SYS_NAND_MAX_CHIPS];
-	int len;
+	int offs;         /* 当前数据页的 OOB 区中存储的 pattern 数据在 OOB 区中的偏移量 */
+	int veroffs;      /* 表示当前数据块的 bbt 版本计数在当前数据页的 OOB 中的偏移量 */
+	uint8_t version[CONFIG_SYS_NAND_MAX_CHIPS];  /* 在 bbt 扫描期间从 bbt 页中读出的版本号信息 */
+	int len;          /* 当前 bbt 描述符包含的 pattern 数据长度，0 表示不作 pattern 检查 */
 	int maxblocks;
 	int reserved_block_code;
-	uint8_t *pattern;
+	uint8_t *pattern; /* 在做坏块检查时使用的 pattern 数据，包含坏块标志在 OOB 中的位置以及使用那些数据表示坏块 */
 };
 
 /* Options for the bad block table descriptors */

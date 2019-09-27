@@ -159,7 +159,7 @@ struct mtd_info {
 	 * in sysfs.  N.B. The meaning of the -EUCLEAN return code has changed;
 	 * see Documentation/ABI/testing/sysfs-class-mtd for more detail.
 	 */
-	unsigned int bitflip_threshold;
+	unsigned int bitflip_threshold;    /* 表示 ecc 纠错能力，如果大于等于这个数值，则表示无法纠正 */
 
 	/* Kernel-only stuff starts here. */
 	const char *name;

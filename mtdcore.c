@@ -14,6 +14,15 @@
 
 struct mtd_info *mtd_table[MAX_MTD_DEVICES];
 
+/*********************************************************************************************************
+** 函数名称: add_mtd_device
+** 功能描述: 把指定的 mtd 设备信息添加到 mtd_table 数组的空闲位置处
+** 输     入: mtd - 需要添加的 mtd 设备信息
+** 输     出: 0 - 添加成功
+**         : 1 - 添加失败
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int add_mtd_device(struct mtd_info *mtd)
 {
 	int i;
@@ -53,6 +62,16 @@ int add_mtd_device(struct mtd_info *mtd)
  *      Returns zero on success or 1 on failure, which currently will happen
  *      if the requested device does not appear to be present in the list.
  */
+/*********************************************************************************************************
+** 函数名称: del_mtd_device
+** 功能描述: 把指定的 mtd 设备信息从 mtd_table 数组中移除并清空相应位置处的数据
+** 输     入: mtd - 需要移除的 mtd 设备信息
+** 输     出: 0 - 移除成功
+**         : ENODEV - 没有指定的设备
+**         : EBUSY - 设备正在使用中
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int del_mtd_device(struct mtd_info *mtd)
 {
 	int ret;
@@ -86,6 +105,16 @@ int del_mtd_device(struct mtd_info *mtd)
  *      both, return the num'th driver only if its address matches. Return
  *      error code if not.
  */
+/*********************************************************************************************************
+** 函数名称: get_mtd_device
+** 功能描述: 获取当前系统内指定的 mtd 设备（递增使用计数值）
+** 输     入: mtd - 需要获取的 mtd 设备信息
+**         : num - 如果等于 -1，表示从系统中遍历查找 mtd 设备信息，否则获取系统指定位置的 mtd 设备信息
+** 输     出: ret - 成功获取的 mtd 设备信息地址
+**         : NULL - 获取失败
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 {
 	struct mtd_info *ret = NULL;
@@ -112,13 +141,23 @@ out_unlock:
 }
 
 /**
- *      get_mtd_device_nm - obtain a validated handle for an MTD device by
- *      device name
- *      @name: MTD device name to open
+ *  get_mtd_device_nm - obtain a validated handle for an MTD device by
+ *  device name
+ *  @name: MTD device name to open
  *
- *      This function returns MTD device description structure in case of
- *      success and an error code in case of failure.
+ *  This function returns MTD device description structure in case of
+ *  success and an error code in case of failure.
  */
+/*********************************************************************************************************
+** 函数名称: get_mtd_device_nm
+** 功能描述: 通过设备名获取当前系统内指定的 mtd 设备（递增使用计数值）
+** 输     入: mtd - 需要获取的 mtd 设备信息
+**         : num - 如果等于 -1，表示从系统中遍历查找 mtd 设备信息，否则获取系统指定位置的 mtd 设备信息
+** 输     出: ret - 成功获取的 mtd 设备信息地址
+**         : NULL - 获取失败
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
 	int i, err = -ENODEV;
@@ -141,6 +180,14 @@ out_unlock:
 	return ERR_PTR(err);
 }
 
+/*********************************************************************************************************
+** 函数名称: put_mtd_device
+** 功能描述: 释放当前系统内指定的 mtd 设备（递减使用计数值）
+** 输     入: mtd - 需要释放的 mtd 设备信息
+** 输     出: 
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 void put_mtd_device(struct mtd_info *mtd)
 {
 	int c;
@@ -161,6 +208,18 @@ void put_mtd_device(struct mtd_info *mtd)
  * @return image length including bad blocks in *len_incl_bad and whether or not
  *         the length returned was truncated in *truncated
  */
+/*********************************************************************************************************
+** 函数名称: mtd_get_len_incl_bad
+** 功能描述: 查询指定的 mtd 设备从指定的偏移量位置处开始，指定长度的连续存储空间内是否有坏块
+** 输     入: mtd - mtd 设备信息
+**         : offset - 需要查询的起始偏移量（全局偏移量）
+**         : length - 需要查查询的数据长度
+**         : len_incl_bad - 
+**         : truncated - 
+** 输     出: 
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 void mtd_get_len_incl_bad(struct mtd_info *mtd, uint64_t offset,
 			  const uint64_t length, uint64_t *len_incl_bad,
 			  int *truncated)
@@ -176,6 +235,7 @@ void mtd_get_len_incl_bad(struct mtd_info *mtd, uint64_t offset,
 	uint64_t len_excl_bad = 0;
 	uint64_t block_len;
 
+    /* 从指定的起始位置开始遍历查询指定长度范围内的连续存储空间是否存在坏块 */
 	while (len_excl_bad < length) {
 		if (offset >= mtd->size) {
 			*truncated = 1;
@@ -200,6 +260,15 @@ void mtd_get_len_incl_bad(struct mtd_info *mtd, uint64_t offset,
  * Callers are supposed to pass a callback function and wait for it
  * to be called before writing to the block.
  */
+/*********************************************************************************************************
+** 函数名称: mtd_erase
+** 功能描述: 使用 mtd->_erase 接口根据指定的擦除操作信息对指定的 mtd 设备执行擦除操作
+** 输     入: mtd - mtd 设备信息
+** 		   : instr - 指定的擦除信息
+** 输     出: ret_code - 擦除状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	if (instr->addr > mtd->size || instr->len > mtd->size - instr->addr)
@@ -215,6 +284,18 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	return mtd->_erase(mtd, instr);
 }
 
+/*********************************************************************************************************
+** 函数名称: mtd_read
+** 功能描述: 使用 mtd->_read 接口尝试从指定的 mtd 设备指定位置处读出指定长度的数据，并返回实际读到的数据长度
+** 输	 入: mtd - mtd 设备信息
+**         : from - 读取起始偏移量（全局偏移量）
+**         : len - 需要读取的数据长度
+**         : retlen - 实际读取到的数据长度
+**         : buf - 用来存储读取到的数据的缓冲区
+** 输	 出: ret_code - 读取状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	     u_char *buf)
 {
@@ -237,6 +318,18 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 
+/*********************************************************************************************************
+** 函数名称: mtd_write
+** 功能描述: 使用 mtd->_write 接口向指定的 mtd 设备指定位置处写入指定长度的数据，并返回实际写入的数据长度
+** 输     入: mtd - mtd 设备信息
+** 		   : to - 写入数据起始偏移量（全局偏移量）
+** 		   : len - 需要写入的数据长度
+** 		   : retlen - 实际写入的数据长度
+** 		   : buf - 需要写入的数据缓冲区
+** 输     出: ret_code - 写入状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	      const u_char *buf)
 {
@@ -257,6 +350,19 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
  * the kernel is not going to be running for much longer, this function can
  * break locks and delay to ensure the write succeeds (but not sleep).
  */
+/*********************************************************************************************************
+** 函数名称: mtd_panic_write
+** 功能描述: 使用 mtd->_panic_write 接口向指定的 mtd 设备指定位置处写入指定长度的数据，并返回实际
+**         : 写入的数据长度
+** 输     入: mtd - mtd 设备信息
+** 		   : to - 写入数据起始偏移量（全局偏移量）
+** 		   : len - 需要写入的数据长度
+** 		   : retlen - 实际写入的数据长度
+** 		   : buf - 需要写入的数据缓冲区
+** 输     出: ret_code - 写入状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		    const u_char *buf)
 {
@@ -272,6 +378,16 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	return mtd->_panic_write(mtd, to, len, retlen, buf);
 }
 
+/*********************************************************************************************************
+** 函数名称: mtd_read_oob
+** 功能描述: 使用 mtd->_read_oob 接口根据指定的操作信息对
+** 输	 入: mtd - mtd 设备信息
+**		   : from - 读取数据的起始偏移量（全局偏移量）
+**		   : ops - 指定的操作信息
+** 输     出: ret_code - 写入状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	ops->retlen = ops->oobretlen = 0;
@@ -370,6 +486,16 @@ int mtd_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	return mtd->_unlock(mtd, ofs, len);
 }
 
+/*********************************************************************************************************
+** 函数名称: mtd_block_isbad
+** 功能描述: 判断指定 mtd 设备的指定偏移量位置处的存储块是否为坏块
+** 输	 入: mtd - mtd 设备信息
+**		   : ofs - 需要判断的存储块偏移量（全局偏移量）
+** 输     出: 1 - 是坏块
+**		   : 0 - 不是坏块
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	if (!mtd->_block_isbad)
@@ -379,6 +505,16 @@ int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	return mtd->_block_isbad(mtd, ofs);
 }
 
+/*********************************************************************************************************
+** 函数名称: mtd_block_markbad
+** 功能描述: 把指定 mtd 设备的指定偏移量位置处的存储块标志为坏块
+** 输	 入: mtd - mtd 设备信息
+**		   : ofs - 需要标志为坏块的起始偏移量（全局偏移量）
+** 输     出: 0 - 标记成功
+**         : 1 - 标记失败
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	if (!mtd->_block_markbad)
