@@ -532,9 +532,9 @@ struct nand_chip {
 
 	int page_shift;        /* 数据页大小偏移量 */
 	int phys_erase_shift;  /* 擦除块大小偏移量 */
-	int bbt_erase_shift;
+	int bbt_erase_shift;   /* 擦除块大小偏移量 */
 	int chip_shift;
-	int numchips;
+	int numchips;          /* 表示当前 mtd 设备下有多少个 nand flash 设备 */
 	uint64_t chipsize;     /* 表示当前 nand chip 容量大小 */
 	int pagemask;          /* 有效页数掩码值（表示设备中最大页号需要的二进制 bit 数）*/
 	int pagebuf;           /* 当前系统缓存的 nand 存储页号，-1 表示当前缓存无效 */
@@ -556,13 +556,24 @@ struct nand_chip {
 	struct nand_ecclayout *ecclayout;
 
 	struct nand_ecc_ctrl ecc;
-	struct nand_buffers *buffers;  /* 系统缓冲区，可以存储一个页的数据，这样就可以处理非页对齐的操作 */
+	struct nand_buffers *buffers;   /* 系统缓冲区，可以存储一个页的数据，这样就可以处理非页对齐的操作 */
 	struct nand_hw_control hwcontrol;
 
 	uint8_t *bbt;
+
+	/* bbt_td 和 bbt_md 是主 bbt 和镜像 bbt 的描述符，镜像 bbt 主要用来对 bbt 的更新和备份，它们只在把
+	 * bbt 存储在 NAND 芯片的情况下使用，用来从 NAND 芯片中查找 bbt。若 bbt 存储在内存中，bbt_td 和 
+	 * bbt_md 将会被赋值为 NULL */
 	struct nand_bbt_descr *bbt_td;
 	struct nand_bbt_descr *bbt_md;
 
+    /* badblock_pattern 表示坏块信息的 pattern，其中定义了坏块信息在 oob 中的存储位置，以及内容，即用
+     * 什么值表示这个 block 是个坏块。通常用 1 或 2 个字节来标志一个 block 是否为坏块，这 1 或 2 个字
+     * 节就是坏块信息，如果这 1 或 2 个字节的内容是 0xff，那就说明这个 block 是好的，否则就是坏块。一
+     * 般来说，small page 的 NAND 芯片，坏块信息存储在每个 block 的第一个 page 的 oob 的第六个字节中，
+     * 而 big page 的 NAND 芯片，坏块信息存储在每个 block 的第一个 page 的 oob 的第 1 和第 2 个字节中
+     * 即使某种 NAND 芯片的坏块信息不是这样的存储方式也没关系，因为我们可以在 badblock_pattern 中自己
+     * 指定坏块信息的存储位置，以及用什么值来标志坏块 */
 	struct nand_bbt_descr *badblock_pattern;
 
 	void *priv;

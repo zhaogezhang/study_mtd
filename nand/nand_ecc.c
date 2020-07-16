@@ -68,6 +68,16 @@ static const u_char nand_ecc_precalc_table[] = {
  * @dat:	raw data
  * @ecc_code:	buffer for ECC
  */
+/*********************************************************************************************************
+** 函数名称: nand_calculate_ecc
+** 功能描述: 计算指定的 256B 长度数据的 ecc 校验码，并把计算结果存储到指定的缓冲区中
+** 输	 入: mtd - mtd 设备信息
+**         : dat - 存储需要计算 ecc 的原始数据（256B）
+**         : ecc_code - 存放计算得到的 ecc 结果（3B）
+** 输	 出: 0 - 计算完成
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 		       u_char *ecc_code)
 {
@@ -141,6 +151,19 @@ static inline int countbits(uint32_t byte)
  *
  * Detect and correct a 1 bit error for 256 byte block
  */
+/*********************************************************************************************************
+** 函数名称: nand_correct_data
+** 功能描述: 检测并尝试纠正指定数据的 ecc，如果只有一个 bit 错误，则进行纠正
+** 输	 入: mtd - mtd 设备信息
+**         : dat - 存储需要校验 ecc 的原始数据
+**         : read_ecc - 我们从 nand 中读取出来的 ecc 数据
+**         : calc_ecc - 我们本次重新计算得到的 ecc 数据
+** 输	 出: 0 - 没有 ecc 错误
+**         : 1 - 发现一个 bit ecc 错误并纠正
+**         : EBADMSG - 发现多个 bit ecc 错误并无法纠正
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 int nand_correct_data(struct mtd_info *mtd, u_char *dat,
 		      u_char *read_ecc, u_char *calc_ecc)
 {

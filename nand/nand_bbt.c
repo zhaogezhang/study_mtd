@@ -72,6 +72,17 @@
 
 #include "errno.h"
 
+/*********************************************************************************************************
+** 函数名称: check_bytes8
+** 功能描述: 检测指定长度、指定起始地址的数据缓冲区数据和指定的数据是否相等
+** 输	 入: start - 需要校验的起始数据地址
+**         : value - 检测的目标值
+**         : bytes - 需要检测的数据字节数
+** 输	 出: NULL - 所有的数据都和指定目标值是否相等
+**         : void * - 和指定的目标值不相等的内存地址
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
 {
     while (bytes) {
@@ -91,6 +102,17 @@ static void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
  * returns the address of the first character other than @c, or %NULL
  * if the whole buffer contains just @c.
  */
+/*********************************************************************************************************
+** 函数名称: memchr_inv
+** 功能描述: 检测指定长度、指定起始地址的数据缓冲区数据和指定的数据是否相等
+** 输	 入: start - 需要校验的起始数据地址
+**         : value - 检测的目标值
+**         : bytes - 需要检测的数据字节数
+** 输	 出: NULL - 所有的数据都和指定目标值是否相等
+**         : void * - 和指定的目标值不相等的内存地址
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 void *memchr_inv(const void *start, int c, size_t bytes)
 {
     u8 value = c;
@@ -129,6 +151,16 @@ void *memchr_inv(const void *start, int c, size_t bytes)
     return check_bytes8(start, value, bytes % 8);
 }
 
+/*********************************************************************************************************
+** 函数名称: check_pattern_no_oob
+** 功能描述: 判断指定的缓冲区中是否包含指定的 bbt 描述符的 pattern 数据
+** 输	 入: buf - 需要判断的缓冲区起始地址
+**         : td - 当前 nand 的 bbt 描述符
+** 输	 出: 0 - 当前缓冲区“包含”指定的 pattern 数据
+**         : -1 - 当前缓冲区“不包含”指定的 pattern 数据
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
 {
 	if (memcmp(buf, td->pattern, td->len))
@@ -147,6 +179,19 @@ static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
  * good / bad block identifiers. If the SCAN_EMPTY option is set then check, if
  * all bytes except the pattern area contain 0xff.
  */
+/*********************************************************************************************************
+** 函数名称: check_pattern
+** 功能描述: 判断指定的存储页缓冲区中是否包含指定的 bbt 描述符的 pattern 数据
+**         : 这个函数除了会判断 pattern 数据，还可以根据 bbt 描述符校验其他位置处的数据
+** 输	 入: buf - 需要判断的数据页缓冲区起始地址（包含存储数据和 OOB 数据）
+**         : len - 数据页缓冲区长度（包含存储数据和 OOB 数据）
+**         : paglen - 数据页存储数据空间大小
+**         : td - 当前 nand 的 bbt 描述符
+** 输	 出: 0 - 当前页缓冲区“包含”指定的 pattern 数据
+**         : -1 - 当前页缓冲区“不包含”指定的 pattern 数据
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_descr *td)
 {
 	int end = 0;
@@ -156,21 +201,27 @@ static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_desc
 		return check_pattern_no_oob(buf, td);
 
 	end = paglen + td->offs;
+
+	/* 判断当前指定的 nand 存储页是否为空，即当前存储页缓冲区中除了 pattern 数据，其他位置是否全为 0xFF */
 	if (td->options & NAND_BBT_SCANEMPTY)
 		if (memchr_inv(p, 0xff, end))
 			return -1;
+
+    /* 把 p 指针移动到当前存储页缓冲区中存储 bbt pattern 数据的位置处 */
 	p += end;
 
 	/* Compare the pattern */
 	if (memcmp(p, td->pattern, td->len))
 		return -1;
 
+	/* 判断当前指定的 nand 存储页是否为空，即当前存储页缓冲区中除了 pattern 数据，其他位置是否全为 0xFF */
 	if (td->options & NAND_BBT_SCANEMPTY) {
 		p += td->len;
 		end += td->len;
 		if (memchr_inv(p, 0xff, len - end))
 			return -1;
 	}
+	
 	return 0;
 }
 
@@ -183,6 +234,17 @@ static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_desc
  * good / bad block identifiers. Same as check_pattern, but no optional empty
  * check.
  */
+/*********************************************************************************************************
+** 函数名称: check_short_pattern
+** 功能描述: 判断指定的存储页缓冲区中是否包含指定的 bbt 描述符的 pattern 数据
+**         : 这个函数只会判断当前存储页中的 pattern 数据
+** 输	 入: buf - 需要判断的数据页缓冲区起始地址（包含存储数据和 OOB 数据）
+**         : td - 当前 nand 的 bbt 描述符
+** 输	 出: 0 - 当前页缓冲区“包含”指定的 pattern 数据
+**         : -1 - 当前页缓冲区“不包含”指定的 pattern 数据
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int check_short_pattern(uint8_t *buf, struct nand_bbt_descr *td)
 {
 	/* Compare the pattern */
@@ -197,6 +259,14 @@ static int check_short_pattern(uint8_t *buf, struct nand_bbt_descr *td)
  *
  * The length will be 0 if the marker is located in OOB area.
  */
+/*********************************************************************************************************
+** 函数名称: add_marker_len
+** 功能描述: 计算指定的 bbt 描述符的 marker 数据如果存储在存储页的数据存储区中（inband），会占用的字节数
+** 输	 入: td - bbt 描述符指针
+** 输	 出: len - bbt 需要占用的空间字节数
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static u32 add_marker_len(struct nand_bbt_descr *td)
 {
 	u32 len;
@@ -221,6 +291,22 @@ static u32 add_marker_len(struct nand_bbt_descr *td)
  *
  * Read the bad block table starting from page.
  */
+/*********************************************************************************************************
+** 函数名称: read_bbt
+** 功能描述: 根据 nand 中存储的 bbt 数据更新 ram 中的 bbt 数据，具体如下：
+**         : 从指定 mtd 设备的指定起始页号（pgae）对应的存储页中读取指定数据块个数（num）对应的坏块标志
+**         : 数据到指定的缓冲区（buf）中，并判断这些数据块中是否有坏块，如果有，则更新内存 bbt 表中的数据
+**         : 把对应数据块在 bbt 中的数据设置为坏块标记
+** 输	 入: mtd - mtd 设备信息
+**         : buf - 用来存储读取到的存储页数据的缓冲区
+**         : page - 读取“坏块标志”数据的起始页号
+**         : num - 表示需要读取多少个数据块的“坏块标志”数据
+**         : td - 当前 nand 的 bbt 描述符
+**         : offs - 当前读取的起始坏块标志数据在内存 bbt 表中的其实偏移量
+** 输	 出: ret - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 		struct nand_bbt_descr *td, int offs)
 {
@@ -228,17 +314,31 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 	struct nand_chip *this = mtd->priv;
 	size_t retlen, len, totlen;
 	loff_t from;
+
+	/* 表示一个存储数据块在 bbt 中占用的数据 bit 数 */
 	int bits = td->options & NAND_BBT_NRBITS_MSK;
+
+    /* 表示一个存储数据块在 bbt 中的数据的掩码值 */
 	uint8_t msk = (uint8_t)((1 << bits) - 1);
+	
 	u32 marker_len;
 	int reserved_block_code = td->reserved_block_code;
 
+    /* 计算本次读取操作需要读取的 bbt 数据字节数 */
 	totlen = (num * bits) >> 3;
+
+	/* 计算指定的 bbt 描述符的 marker 数据如果存储在存储页的数据存储区中（inband），会占用的字节数 */
 	marker_len = add_marker_len(td);
+
+	/* 计算当前起始页在 nand 中的全局偏移量 */
 	from = ((loff_t)page) << this->page_shift;
 
 	while (totlen) {
+
+	    /* 把 totlen 长度按照擦除块大小进行切割并向下取小 */
 		len = min(totlen, (size_t)(1 << this->bbt_erase_shift));
+
+	    /* 跳过起始存储页中的 bbt marker 数据 */
 		if (marker_len) {
 			/*
 			 * In case the BBT marker is not in the OOB area it
@@ -248,6 +348,8 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 			from += marker_len;
 			marker_len = 0;
 		}
+
+		/* 用 mtd->_read 接口尝试从指定的 mtd 设备指定位置处读出指定长度的数据，并返回实际读到的数据长度 */
 		res = mtd_read(mtd, from, len, &retlen, buf);
 		if (res < 0) {
 			if (mtd_is_eccerr(res)) {
@@ -265,12 +367,18 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 		}
 
 		/* Analyse data */
+		/* 分别遍历从当前指定的 nand 存储块中读出的每一个字节数据 */
 		for (i = 0; i < len; i++) {
 			uint8_t dat = buf[i];
+
+            /* 分别遍历当前字节中每个存储块对应的坏块标志数据 */
 			for (j = 0; j < 8; j += bits, act += 2) {
 				uint8_t tmp = (dat >> j) & msk;
+
+			    /* 如果坏块标志数据为全 F，则表示是一个好的数据块 */
 				if (tmp == msk)
 					continue;
+
 				if (reserved_block_code && (tmp == reserved_block_code)) {
 					pr_info("nand_read_bbt: reserved block at 0x%012llx\n",
 						 (loff_t)((offs << 2) + (act >> 1)) << this->bbt_erase_shift);
@@ -278,20 +386,35 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 					mtd->ecc_stats.bbtblocks++;
 					continue;
 				}
+				
 				pr_info("nand_read_bbt: Bad block at 0x%012llx\n",
 					(loff_t)((offs << 2) + (act >> 1))
 					<< this->bbt_erase_shift);
-				/* Factory marked bad or worn out? */
+				
+				/* Factory marked bad or worn out?
+			     * The table uses 2 bits per block
+                 * 11b:		  block is good
+                 * 00b:		  block is factory marked bad
+                 * 01b, 10b : block is marked bad due to wear
+                 *
+                 * The memory bad block table uses the following scheme:
+                 * 00b:		  block is good
+                 * 01b:		  block is marked bad due to wear
+                 * 10b:		  block is reserved (to protect the bbt area)
+                 * 11b:		  block is factory marked bad */
 				if (tmp == 0)
 					this->bbt[offs + (act >> 3)] |= 0x3 << (act & 0x06);
 				else
 					this->bbt[offs + (act >> 3)] |= 0x1 << (act & 0x06);
+
 				mtd->ecc_stats.badblocks++;
 			}
 		}
+		
 		totlen -= len;
 		from += len;
 	}
+	
 	return ret;
 }
 
@@ -306,11 +429,23 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
  * Read the bad block table for all chips starting at a given page. We assume
  * that the bbt bits are in consecutive order.
  */
+/*********************************************************************************************************
+** 函数名称: read_abs_bbt
+** 功能描述: 根据 nand 中存储的 bbt 数据更新 ram 中的 bbt 数据
+** 输	 入: mtd - mtd 设备信息
+**         : buf - 用来存储读取到的存储页数据的缓冲区
+**         : td - 当前 nand 的 bbt 描述符
+**         : chip - 表示想要读取那个 nand 的 bbt 数据，-1 表示读取所有 nand 的 bbt 数据
+** 输	 出: ret - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int read_abs_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *td, int chip)
 {
 	struct nand_chip *this = mtd->priv;
 	int res = 0, i;
 
+	/* 表示每个 nand 存储器的 bbt 数据都存储在各自的存储空间中 */
 	if (td->options & NAND_BBT_PERCHIP) {
 		int offs = 0;
 		for (i = 0; i < this->numchips; i++) {
@@ -322,16 +457,30 @@ static int read_abs_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 				return res;
 			offs += this->chipsize >> (this->bbt_erase_shift + 2);
 		}
+
+    /* 表示所有 nand 存储器的 bbt 数据都存储在第一个 nand 的存储空间中 */
 	} else {
 		res = read_bbt(mtd, buf, td->pages[0],
 				mtd->size >> this->bbt_erase_shift, td, 0);
 		if (res)
 			return res;
 	}
+	
 	return 0;
 }
 
 /* BBT marker is in the first page, no OOB */
+/*********************************************************************************************************
+** 函数名称: scan_read_data
+** 功能描述: 从指定的 mtd 设备的指定偏移量位置处读取 bbt pattern 数据到指定的缓冲区中
+** 输	 入: mtd - mtd 设备信息
+**         : buf - 用来存储读取到的存储页数据的缓冲区
+**         : offs - 读取起始偏移量（全局偏移量）
+**         : td - 当前 nand 的 bbt 描述符
+** 输	 出: ret_code - 读取状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int scan_read_data(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 			 struct nand_bbt_descr *td)
 {
@@ -356,6 +505,19 @@ static int scan_read_data(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
  * page,OOB,page,OOB,... in buf. Completes transfer and returns the "strongest"
  * ECC condition (error or bitflip). May quit on the first (non-ECC) error.
  */
+/*********************************************************************************************************
+** 函数名称: scan_read_oob
+** 功能描述: 从指定的 mtd 设备的指定偏移量位置处读取指定长度的数据（存储数据和 OOB 数据）到指定的缓冲区中
+** 注     释: Scan read data from data+OOB. May traverse multiple pages, interleaving 
+**         : page, OOB, page, OOB... in buf.
+** 输	 入: mtd - mtd 设备信息
+**         : buf - 用来存储读取到的存储页数据的缓冲区
+**         : offs - 读取起始偏移量（全局偏移量）
+**         : len - 需要读取的数据字节数
+** 输	 出: ret_code - 读取状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int scan_read_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 			 size_t len)
 {
@@ -386,6 +548,19 @@ static int scan_read_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 	return ret;
 }
 
+/*********************************************************************************************************
+** 函数名称: scan_read
+** 功能描述: 从指定的 mtd 设备的指定偏移量位置处读取指定长度的数据到指定的缓冲区中
+** 注     释: 会根据 bbt 描述符选项数据决定是否读取 OOB 数据
+** 输     入: mtd - mtd 设备信息
+** 		   : buf - 用来存储读取到的存储页数据的缓冲区
+** 		   : offs - 读取起始偏移量（全局偏移量）
+** 		   : len - 需要读取的数据字节数
+** 		   : td - 当前 nand 的 bbt 描述符
+** 输     出: ret_code - 读取状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int scan_read(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 			 size_t len, struct nand_bbt_descr *td)
 {
@@ -396,6 +571,18 @@ static int scan_read(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 }
 
 /* Scan write data with oob to flash */
+/*********************************************************************************************************
+** 函数名称: scan_write_bbt
+** 功能描述: 向指定的 mtd 设备的指定偏移量位置处写入指定长度的数据（存储数据和 OOB 数据）
+** 输     入: mtd - mtd 设备信息
+** 		   : offs - 写入数据起始偏移量（全局偏移量）
+** 		   : len - 想要写入的存储数据长度
+** 		   : buf - 想要写入的存储数据缓冲区
+** 		   : oob - 想要写入的 OOB 数据缓冲区
+** 输     出: ret_code - 写入状态
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int scan_write_bbt(struct mtd_info *mtd, loff_t offs, size_t len,
 			  uint8_t *buf, uint8_t *oob)
 {
@@ -411,6 +598,15 @@ static int scan_write_bbt(struct mtd_info *mtd, loff_t offs, size_t len,
 	return mtd_write_oob(mtd, offs, &ops);
 }
 
+/*********************************************************************************************************
+** 函数名称: bbt_get_ver_offs
+** 功能描述: 根据指定的 bbt 描述符获取指定的 mtd 设备的 bbt 版本号偏移量
+** 输	 入: mtd - mtd 设备信息
+**		   : td - 当前 nand bbt 描述符
+** 输	 出: ver_offs - 读取到的 bbt 版本偏移量
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static u32 bbt_get_ver_offs(struct mtd_info *mtd, struct nand_bbt_descr *td)
 {
 	u32 ver_offs = td->veroffs;
@@ -430,6 +626,18 @@ static u32 bbt_get_ver_offs(struct mtd_info *mtd, struct nand_bbt_descr *td)
  * Read the bad block table(s) for all chips starting at a given page. We
  * assume that the bbt bits are in consecutive order.
  */
+/*********************************************************************************************************
+** 函数名称: read_abs_bbts
+** 功能描述: 根据指定的 bbt 描述符读取指定的 mtd 设备的 bbt 数据到指定的缓冲区中
+** 注     释: 如果同时读取主 bbt 描述符和镜像 bbt 描述符，则以镜像 bbt 描述符优先
+** 输	 入: mtd - mtd 设备信息
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : td - 当前 nand 的主 bbt 描述符
+**		   : md - 当前 nand 的镜像 bbt 描述符
+** 输	 出: 
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static void read_abs_bbts(struct mtd_info *mtd, uint8_t *buf,
 			  struct nand_bbt_descr *td, struct nand_bbt_descr *md)
 {
@@ -455,18 +663,36 @@ static void read_abs_bbts(struct mtd_info *mtd, uint8_t *buf,
 }
 
 /* Scan a given block full */
+/*********************************************************************************************************
+** 函数名称: scan_block_full
+** 功能描述: 从指定的 mtd 设备的指定偏移量位置处读取指定长度的数据（存储数据和 OOB 数据）到指定的缓冲区中
+**         : 并判断读取到缓冲区中数据和指定的 bbt 描述符的 pattern 数据是否匹配
+** 输	 入: mtd - mtd 设备信息
+**		   : bd - 当前 nand 的 bbt 描述符
+**		   : offs - 读取起始偏移量（全局偏移量）
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : readlen - 需要读取的数据字节数
+**		   : scanlen - 每个存储页的长度（存储数据加上 OOB 数据的和）
+**		   : numpages - 需要扫描的存储页个数
+** 输	 出: 0 - 和指定的 pattern 数据匹配
+**         : -1 - 和指定的 pattern 数据“不”匹配
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int scan_block_full(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 			   loff_t offs, uint8_t *buf, size_t readlen,
 			   int scanlen, int numpages)
 {
 	int ret, j;
 
+    /* 从指定的 mtd 设备的指定偏移量位置处读取指定长度的数据（存储数据和 OOB 数据）到指定的缓冲区中 */
 	ret = scan_read_oob(mtd, buf, offs, readlen);
 	/* Ignore ECC errors when checking for BBM */
 	if (ret && !mtd_is_bitflip_or_eccerr(ret))
 		return ret;
 
 	for (j = 0; j < numpages; j++, buf += scanlen) {
+		/* 判断指定的存储页缓冲区中是否包含指定的 bbt 描述符的 pattern 数据 */
 		if (check_pattern(buf, scanlen, mtd->writesize, bd))
 			return 1;
 	}
@@ -474,6 +700,20 @@ static int scan_block_full(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 }
 
 /* Scan a given block partially */
+/*********************************************************************************************************
+** 函数名称: scan_block_fast
+** 功能描述: 从指定的 mtd 设备的指定偏移量位置处读取指定个数的存储页的 OOB 数据并判断读取到的 OOB 数据
+**         : 和指定的 bbt 描述符的 pattern 数据是否匹配
+** 输	 入: mtd - mtd 设备信息
+**		   : bd - 当前 nand 的 bbt 描述符
+**		   : offs - 读取起始偏移量（全局偏移量）
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : numpages - 需要扫描的存储页个数
+** 输	 出: 0 - 和指定的 pattern 数据匹配
+**         : -1 - 和指定的 pattern 数据“不”匹配
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 			   loff_t offs, uint8_t *buf, int numpages)
 {
@@ -491,11 +731,13 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 		 * Read the full oob until read_oob is fixed to handle single
 		 * byte reads for 16 bit buswidth.
 		 */
+		/* 只读取 OOB 数据，所以速度比较快 */
 		ret = mtd_read_oob(mtd, offs, &ops);
 		/* Ignore ECC errors when checking for BBM */
 		if (ret && !mtd_is_bitflip_or_eccerr(ret))
 			return ret;
 
+        /* 判断指定的存储页缓冲区中是否包含指定的 bbt 描述符的 pattern 数据 */
 		if (check_short_pattern(buf, bd))
 			return 1;
 
@@ -515,6 +757,17 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
  * Create a bad block table by scanning the device for the given good/bad block
  * identify pattern.
  */
+/*********************************************************************************************************
+** 函数名称: create_bbt
+** 功能描述: 根据指定的 bbt 描述符遍历指定的 mtd 设备存储块来创建内存中的 bbt 数据结构
+** 输	 入: mtd - mtd 设备信息
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : bd - 当前 nand 的 bbt 描述符
+**		   : chip - 需要创建 bbt 的芯片索引，-1 表示所有芯片
+** 输	 出: int - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 	struct nand_bbt_descr *bd, int chip)
 {
@@ -526,6 +779,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 	pr_info("Scanning device for bad blocks\n");
 
+    /* 根据 bbt 选项数据确定本次需要在一个数据块内扫描几个存储页的数据 */
 	if (bd->options & NAND_BBT_SCANALLPAGES)
 		numpages = 1 << (this->bbt_erase_shift - this->page_shift);
 	else if (bd->options & NAND_BBT_SCAN2NDPAGE)
@@ -572,14 +826,19 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 		BUG_ON(bd->options & NAND_BBT_NO_OOB);
 
 		if (bd->options & NAND_BBT_SCANALLPAGES)
+			/* 从指定的 mtd 设备的指定偏移量位置处读取指定长度的数据（存储数据和 OOB 数据）到指定的缓冲区中
+               并判断读取到缓冲区中数据和指定的 bbt 描述符的 pattern 数据是否匹配 */
 			ret = scan_block_full(mtd, bd, from, buf, readlen,
 					      scanlen, numpages);
 		else
+			/* 从指定的 mtd 设备的指定偏移量位置处读取指定个数的存储页的 OOB 数据并判断读取到的 OOB 数据
+               和指定的 bbt 描述符的 pattern 数据是否匹配 */
 			ret = scan_block_fast(mtd, bd, from, buf, numpages);
 
 		if (ret < 0)
 			return ret;
 
+        /* 如果当前遍历的存储块是坏块，则在内存中的 bbt 的对应位置设置坏块标志并统计当前芯片坏块计数 */
 		if (ret) {
 			this->bbt[i >> 3] |= 0x03 << (i & 0x6);
 			pr_warn("Bad eraseblock %d at 0x%012llx\n",
@@ -608,6 +867,16 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
  *
  * The bbt ident pattern resides in the oob area of the first page in a block.
  */
+/*********************************************************************************************************
+** 函数名称: search_bbt
+** 功能描述: 根据指定的 bbt 描述符从指定的 mtd 设备中遍历查找 bbt 数据，并在 td 中记录读取到的 bbt 信息 
+** 输	 入: mtd - mtd 设备信息
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : td - 当前 nand 的 bbt 描述符
+** 输	 出: int - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *td)
 {
 	struct nand_chip *this = mtd->priv;
@@ -618,6 +887,7 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 	int blocktopage = this->bbt_erase_shift - this->page_shift;
 
 	/* Search direction top -> down? */
+	/* 根据当前 bbt 选项数据决定从哪个位置开始扫描存储在 nand 中的 bbt 数据 */
 	if (td->options & NAND_BBT_LASTBLOCK) {
 		startblock = (mtd->size >> this->bbt_erase_shift) - 1;
 		dir = -1;
@@ -636,18 +906,25 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		bbtblocks = mtd->size >> this->bbt_erase_shift;
 	}
 
+    /* 分别遍历当前 mtd 设备下的 chips 个 nand */
 	for (i = 0; i < chips; i++) {
 		/* Reset version information */
 		td->version[i] = 0;
 		td->pages[i] = -1;
+	
 		/* Scan the maximum number of blocks */
+		/* 从指定的位置开始，最多遍历 td->maxblocks 个存储块，来查找 bbt 数据 */
 		for (block = 0; block < td->maxblocks; block++) {
 
 			int actblock = startblock + dir * block;
 			loff_t offs = (loff_t)actblock << this->bbt_erase_shift;
 
 			/* Read first page */
+			/* 从指定的 mtd 设备的指定偏移量位置处读取指定长度的数据到指定的缓冲区中 */
 			scan_read(mtd, buf, offs, mtd->writesize, td);
+
+			/* 判断指定的存储页缓冲区中是否包含指定的 bbt 描述符的 pattern 数据
+               这个函数除了会判断 pattern 数据，还可以根据 bbt 描述符校验其他位置处的数据 */
 			if (!check_pattern(buf, scanlen, mtd->writesize, td)) {
 				td->pages[i] = actblock << blocktopage;
 				if (td->options & NAND_BBT_VERSION) {
@@ -659,6 +936,7 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		}
 		startblock += this->chipsize >> this->bbt_erase_shift;
 	}
+	
 	/* Check, if we found a bbt for each requested chip */
 	for (i = 0; i < chips; i++) {
 		if (td->pages[i] == -1)
@@ -667,6 +945,7 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 			pr_info("Bad block table found at page %d, version 0x%02X\n", td->pages[i],
 				td->version[i]);
 	}
+	
 	return 0;
 }
 
@@ -679,6 +958,17 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
  *
  * Search and read the bad block table(s).
  */
+/*********************************************************************************************************
+** 函数名称: search_read_bbts
+** 功能描述: 根据指定的 bbt 描述符从指定的 mtd 设备中遍历查找 bbt 数据，并在 td 中记录读取到的 bbt 信息 
+** 输	 入: mtd - mtd 设备信息
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : td - 当前 nand 的主 bbt 描述符
+**		   : md - 当前 nand 的镜像 bbt 描述符
+** 输	 出: int - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static void search_read_bbts(struct mtd_info *mtd, uint8_t *buf,
 			     struct nand_bbt_descr *td,
 			     struct nand_bbt_descr *md)
@@ -701,6 +991,18 @@ static void search_read_bbts(struct mtd_info *mtd, uint8_t *buf,
  *
  * (Re)write the bad block table.
  */
+/*********************************************************************************************************
+** 函数名称: write_bbt
+** 功能描述: 把指定的主 bbt 描述符中的 bbt 数据写入到指定的 mtd 设备用来存储 bbt 数据的存储块中
+** 输	 入: mtd - mtd 设备信息
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : td - 当前 nand 的主 bbt 描述符
+**		   : md - 当前 nand 的镜像 bbt 描述符
+**		   : chipsel - 需要写入 bbt 的芯片索引，-1 表示所有芯片
+** 输	 出: int - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		     struct nand_bbt_descr *td, struct nand_bbt_descr *md,
 		     int chipsel)
@@ -723,6 +1025,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 	if (!rcode)
 		rcode = 0xff;
+	
 	/* Write bad block table per chip rather than per device? */
 	if (td->options & NAND_BBT_PERCHIP) {
 		numblocks = (int)(this->chipsize >> this->bbt_erase_shift);
@@ -762,8 +1065,10 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			dir = 1;
 		}
 
+        /* 尝试找到一个好的、空闲的存储块用来存储新的 bbt 数据 */
 		for (i = 0; i < td->maxblocks; i++) {
 			int block = startblock + dir * i;
+
 			/* Check, if the block is bad */
 			switch ((this->bbt[block >> 2] >>
 				 (2 * (block & 0x03))) & 0x03) {
@@ -771,6 +1076,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			case 0x03:
 				continue;
 			}
+				 
 			page = block <<
 				(this->bbt_erase_shift - this->page_shift);
 			/* Check, if the block is used by the mirror table */
@@ -809,6 +1115,8 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Make it block aligned */
 			to &= ~((loff_t)((1 << this->bbt_erase_shift) - 1));
 			len = 1 << this->bbt_erase_shift;
+
+            /* 把当前存储块中的所有存储数据读取到指定的缓冲区中 */
 			res = mtd_read(mtd, to, len, &retlen, buf);
 			if (res < 0) {
 				if (retlen != len) {
@@ -819,9 +1127,12 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 				pr_warn("nand_bbt: ECC error while reading "
 					"block for writing bad block table\n");
 			}
+			
 			/* Read oob data */
 			ops.ooblen = (len >> this->page_shift) * mtd->oobsize;
 			ops.oobbuf = &buf[len];
+			
+            /* 把当前存储块中的所有 OOB 数据读取到指定的缓冲区中（放在和存储数据相邻的位置处） */
 			res = mtd_read_oob(mtd, to + mtd->writesize, &ops);
 			if (res < 0 || ops.oobretlen != ops.ooblen)
 				goto outerr;
@@ -829,7 +1140,9 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Calc the byte offset in the buffer */
 			pageoffs = page - (int)(to >> this->page_shift);
 			offs = pageoffs << this->page_shift;
+
 			/* Preset the bbt area with 0xff */
+            /* 把剩余的、没有数据的空闲空间数据设置为全 0xFF 状态 */
 			memset(&buf[offs], 0xff, (size_t)(numblocks >> sft));
 			ooboffs = len + (pageoffs * mtd->oobsize);
 
@@ -871,8 +1184,10 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			dat = this->bbt[bbtoffs + (i >> 2)];
 			for (j = 0; j < 4; j++, i++) {
 				int sftcnt = (i << (3 - sft)) & sftmsk;
+				
 				/* Do not store the reserved bbt blocks! */
-				buf[offs + (i >> sft)] &=
+                /* 根据当前内存中的 bbt 数据来初始化当前缓冲区中的 bbt 数据 */
+			    buf[offs + (i >> sft)] &=
 					~(msk[dat & 0x03] << sftcnt);
 				dat >>= 2;
 			}
@@ -882,10 +1197,13 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		einfo.mtd = mtd;
 		einfo.addr = to;
 		einfo.len = 1 << this->bbt_erase_shift;
+
+		/* 根据指定的擦除操作信息擦除指定的 mtd 设备中指定的数据 */
 		res = nand_erase_nand(mtd, &einfo, 1);
 		if (res < 0)
 			goto outerr;
 
+		/* 把初始化好的 bbt 数据写入到指定的 mtd 设备的指定偏移量位置处 */
 		res = scan_write_bbt(mtd, to, len, buf,
 				td->options & NAND_BBT_NO_OOB ? NULL :
 				&buf[len]);
@@ -898,6 +1216,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		/* Mark it as used */
 		td->pages[chip] = page;
 	}
+	
 	return 0;
 
  outerr:
@@ -913,11 +1232,22 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
  * The function creates a memory based bbt by scanning the device for
  * manufacturer / software marked good / bad blocks.
  */
+/*********************************************************************************************************
+** 函数名称: nand_memory_bbt
+** 功能描述: 根据指定的 bbt 描述符遍历指定的 mtd 设备存储块来创建内存中的 bbt 数据结构
+** 输	 入: mtd - mtd 设备信息
+**		   : bd - 当前 nand 的 bbt 描述符
+** 输	 出: int - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static inline int nand_memory_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 {
 	struct nand_chip *this = mtd->priv;
 
 	bd->options &= ~NAND_BBT_SCANEMPTY;
+
+	/* 根据指定的 bbt 描述符遍历指定的 mtd 设备存储块来创建内存中的 bbt 数据结构 */
 	return create_bbt(mtd, this->buffers->databuf, bd, -1);
 }
 
@@ -932,6 +1262,17 @@ static inline int nand_memory_bbt(struct mtd_info *mtd, struct nand_bbt_descr *b
  * for the chip/device. Update is necessary if one of the tables is missing or
  * the version nr. of one table is less than the other.
  */
+/*********************************************************************************************************
+** 函数名称: check_create
+** 功能描述: 根据指定的 bbt 描述符校验并更新指定的 mtd 设备 bbt 数据，如果之前没有 bbt 数据，则通过
+**		   : 扫描 nand 设备来创建一个新的 bbt 并写入 nand 中
+** 输	 入: mtd - mtd 设备信息
+**		   : buf - 存储读取到的 bbt 数据缓冲区
+**		   : bd - 当前 nand 的 bbt 描述符
+** 输	 出: int - 操作状态，0 表示操作成功
+** 全局变量:
+** 调用模块: 
+*********************************************************************************************************/
 static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *bd)
 {
 	int i, chips, writeops, create, chipsel, res, res2;
@@ -954,6 +1295,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		res = res2 = 0;
 		/* Per chip or per device? */
 		chipsel = (td->options & NAND_BBT_PERCHIP) ? i : -1;
+		
 		/* Mirrored table available? */
 		if (md) {
 			if (td->pages[i] == -1 && md->pages[i] == -1) {
@@ -985,6 +1327,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 			}
 		}
 
+		/* 根据指定的 bbt 描述符遍历指定的 mtd 设备存储块来创建内存中的 bbt 数据结构 */
 		if (create) {
 			/* Create the bad block table by scanning the device? */
 			if (!(td->options & NAND_BBT_CREATE))
@@ -1000,6 +1343,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		}
 
 		/* Read back first? */
+		/* 根据 nand 中存储的 bbt 数据更新 ram 中的 bbt 数据 */
 		if (rd) {
 			res = read_abs_bbt(mtd, buf, rd, chipsel);
 			if (mtd_is_eccerr(res)) {
@@ -1010,7 +1354,9 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 				continue;
 			}
 		}
-		/* If they weren't versioned, read both */
+		
+		/* If they weren't versioned, read both */		
+		/* 根据 nand 中存储的 bbt 数据更新 ram 中的 bbt 数据 */
 		if (rd2) {
 			res2 = read_abs_bbt(mtd, buf, rd2, chipsel);
 			if (mtd_is_eccerr(res2)) {
@@ -1033,19 +1379,22 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		}
 
 		/* Write the bad block table to the device? */
+		/* 把主 bbt 描述符中的 bbt 数据写入到指定的 mtd 设备用来存储 bbt 数据的存储块中 */
 		if ((writeops & 0x01) && (td->options & NAND_BBT_WRITE)) {
 			res = write_bbt(mtd, buf, td, md, chipsel);
 			if (res < 0)
 				return res;
 		}
 
-		/* Write the mirror bad block table to the device? */
+		/* Write the mirror bad block table to the device? */		
+		/* 把镜像 bbt 描述符中的 bbt 数据写入到指定的 mtd 设备用来存储 bbt 数据的存储块中 */
 		if ((writeops & 0x02) && md && (md->options & NAND_BBT_WRITE)) {
 			res = write_bbt(mtd, buf, md, td, chipsel);
 			if (res < 0)
 				return res;
 		}
 	}
+	
 	return 0;
 }
 
